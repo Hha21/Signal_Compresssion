@@ -2,8 +2,8 @@ clear all
 clc
 % 
 % % Define the input and output directories
-% inputDir = 'C:\Users\harry\OneDrive - Imperial College London\My Modules\EEG_Comp\data\data_neuralink';
-% outputDir = 'C:\Users\harry\OneDrive - Imperial College London\My Modules\EEG_Comp\data\neuralink_matdata';
+% inputDir = ;
+% outputDir = ;
 % 
 % % Create the output directory if it doesn't exist
 % if ~exist(outputDir, 'dir')
@@ -39,7 +39,7 @@ clc
 % disp('All files processed and saved successfully.');
 
 % Define the directory containing the .mat files
-dataDir = 'C:\Users\harry\OneDrive - Imperial College London\My Modules\EEG_Comp\data\BCI_IV_dataset4\BCICIV_4_mat';
+dataDir = 'dataDir';
 
 % List of .mat files to process
 matFiles = {'sub1_comp.mat', 'sub2_comp.mat', 'sub3_comp.mat'};
