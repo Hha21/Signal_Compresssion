@@ -6,26 +6,14 @@ import pysindy as ps
 
 # Process entire dataset into a single array:
 
-def load_and_normalise():
-    folder_path = '.\data\data_neuralink'
+def load_and_normalise(file_path):
     signal_threshold = 7142
 
-    all_data = []
-
-    for filename in os.listdir(folder_path):
-        if filename.endswith('.wav'):
-            print('Processing: ' + filename)
-            file_path = os.path.join(folder_path, filename)
-            sampling_rate, data = wavfile.read(file_path)
-            all_data.extend(data)
-
-    all_data = np.clip(all_data, -signal_threshold, signal_threshold)
-    all_data = all_data.astype(np.float32) / signal_threshold
-
-    print(f'Shape is: {all_data.shape}')
-    print(f'Sampling Rate: {sampling_rate}')
-
-    return all_data, sampling_rate
+    print('Processing: ' + file_path)
+    sampling_rate, data = wavfile.read(file_path)
+    data = np.clip(data, -signal_threshold, signal_threshold)
+    data = data.astype(np.float32) / signal_threshold
+    return data, sampling_rate
 
 def generate_windows(signal_data, window_size, step_size):
     windows = [
@@ -34,8 +22,7 @@ def generate_windows(signal_data, window_size, step_size):
     ]
     return np.array(windows)
 
-
-def compute_derivatives(data, dt, method = 'smoothed_finite_differences', use_ddx = True):
+def compute_derivatives(data, dt, method = 'smoothed_finite_differences'):
 
     if method == 'smooted_finite_differences':
         diff_method = ps.SmoothedFiniteDifference()
@@ -47,32 +34,56 @@ def compute_derivatives(data, dt, method = 'smoothed_finite_differences', use_dd
         diff_method = ps.SmoothedFiniteDifference()
 
     dx = diff_method._differentiate(data, dt)
-
-    if use_ddx:
-        ddx = diff_method._differentiate(dx, dt)
-        return dx, ddx
-    else:
-        return dx
+    ddx = diff_method._differentiate(dx, dt)
     
-def data_pipeline(window_size = 1000, step_size = 500):
-
-    data, sample_rate = load_and_normalise()
-    dt = 1.0 / sample_rate
-    windows = generate_windows(data, window_size, step_size)
-    print(f'Windows Shape: {windows.shape}')
-    # print(f'Window 1: {windows[0,:]}')
-    # print(f'Window 2: {windows[1,:]}')
-    i = 0
-    for window in windows:
-        i += 1
-        print(f'Computing dx: {i} of {windows.shape[0]}')
-        dx = compute_derivatives(window.reshape(-1,1), dt, method='smoothed_finite_differences', use_ddx=False)
+    return dx, ddx
     
-    print(f'dx shape: {dx.shape}')
-    print(dx)
+def data_pipeline(window_size = 1000, step_size = 500, method = 'smoothed_finite_differences', batch_size = 5):
 
+    folder_path = '.\data\data_neuralink'
 
+    all_files = [f for f in os.listdir(folder_path) if f.endswith('.wav')]
+    n_batches = len(all_files) // batch_size + (len(all_files) % batch_size != 0)
 
+    # full_data = {'t' : [], 'x': [], 'dx': [], 'ddx': []}
+
+    for batch_idx in range(n_batches):
+
+        print(f'Processing batch {batch_idx + 1} of {n_batches}')
+        batch_files = all_files[batch_idx * batch_size : (batch_idx + 1) * batch_size]
+
+        batch_data = {'t': [], 'x': [], 'dx': [], 'ddx': []}
+
+        for filename in batch_files:
+
+             file_path = os.path.join(folder_path, filename)
+             raw_data, sample_rate = load_and_normalise(file_path)
+
+             dt = 1.0 / sample_rate
+             windows = generate_windows(raw_data, window_size, step_size)
+             time_array = np.arange(window_size) * dt
+             print(f'Windows Shape: {windows.shape}')
+
+             dx, ddx = [], []
+
+             for window in windows:
+                 dx_window, ddx_window = compute_derivatives(window.reshape(-1, 1), dt, method)
+                 dx.append(dx_window.reshape(-1))
+                 ddx.append(ddx_window.reshape(-1))
+            
+        batch_data['t'].extend([time_array] * len(windows))
+        batch_data['x'].extend(windows)
+        batch_data['dx'].extend(dx)
+        batch_data['ddx'].extend(ddx)
     
+    for key in batch_data:
+        batch_data[key] = np.array(batch_data[key])
 
-data_pipeline(window_size=500, step_size=250)
+    print(f"Batch {batch_idx + 1} shapes - t: {batch_data['t'].shape}, x: {batch_data['x'].shape}, dx: {batch_data['dx'].shape}, ddx: {batch_data['ddx'].shape}")
+    
+    yield batch_data
+
+for batch_data in data_pipeline(window_size=1000, step_size=500, method='smoothed_finite_differences', batch_size=150):
+    
+    print(f'Processed a batch with data shapes - t: {batch_data["t"].shape} x: {batch_data["x"].shape}, dx: {batch_data["dx"].shape}, ddx: {batch_data["ddx"].shape}')
+

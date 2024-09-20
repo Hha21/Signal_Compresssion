@@ -1,4 +1,3 @@
-from dbm.ndbm import library
 import numpy as np
 from scipy.special import binom
 from scipy.integrate import odeint
@@ -61,7 +60,6 @@ def sindy_library(X, poly_order, include_sine = False):
 
     return library
 
-
 def sindy_library_order2(X, dX, poly_order, include_sine=False):
     m,n = X.shape
     l = library_size(2*n, poly_order, include_sine, True)
@@ -110,7 +108,6 @@ def sindy_library_order2(X, dX, poly_order, include_sine=False):
             index += 1
 
     return library
-
 
 def sindy_fit(RHS, LHS, coefficient_threshold):
     m,n = LHS.shape
