@@ -38,14 +38,12 @@ def compute_derivatives(data, dt, method = 'smoothed_finite_differences'):
     
     return dx, ddx
     
-def data_pipeline(window_size = 1000, step_size = 500, method = 'smoothed_finite_differences', batch_size = 5):
+def data_pipeline(window_size = 1000, step_size = 500, method = 'smoothed_finite_differences', batch_size = 5, val_split=0.2):
 
     folder_path = '.\data\data_neuralink'
 
     all_files = [f for f in os.listdir(folder_path) if f.endswith('.wav')]
     n_batches = len(all_files) // batch_size + (len(all_files) % batch_size != 0)
-
-    # full_data = {'t' : [], 'x': [], 'dx': [], 'ddx': []}
 
     for batch_idx in range(n_batches):
 
@@ -56,34 +54,39 @@ def data_pipeline(window_size = 1000, step_size = 500, method = 'smoothed_finite
 
         for filename in batch_files:
 
-             file_path = os.path.join(folder_path, filename)
-             raw_data, sample_rate = load_and_normalise(file_path)
+            file_path = os.path.join(folder_path, filename)
+            raw_data, sample_rate = load_and_normalise(file_path)
+            dt = 1.0 / sample_rate
+            windows = generate_windows(raw_data, window_size, step_size)
+            time_array = np.arange(window_size) * dt
+            print(f'Windows Shape: {windows.shape}')
 
-             dt = 1.0 / sample_rate
-             windows = generate_windows(raw_data, window_size, step_size)
-             time_array = np.arange(window_size) * dt
-             print(f'Windows Shape: {windows.shape}')
-
-             dx, ddx = [], []
-
-             for window in windows:
-                 dx_window, ddx_window = compute_derivatives(window.reshape(-1, 1), dt, method)
-                 dx.append(dx_window.reshape(-1))
-                 ddx.append(ddx_window.reshape(-1))
+            dx, ddx = [], []
             
-        batch_data['t'].extend([time_array] * len(windows))
-        batch_data['x'].extend(windows)
-        batch_data['dx'].extend(dx)
-        batch_data['ddx'].extend(ddx)
-    
-    for key in batch_data:
-        batch_data[key] = np.array(batch_data[key])
+            for window in windows:
+                dx_window, ddx_window = compute_derivatives(window.reshape(-1, 1), dt, method)
+                dx.append(dx_window.reshape(-1))
+                ddx.append(ddx_window.reshape(-1))
 
-    print(f"Batch {batch_idx + 1} shapes - t: {batch_data['t'].shape}, x: {batch_data['x'].shape}, dx: {batch_data['dx'].shape}, ddx: {batch_data['ddx'].shape}")
-    
-    yield batch_data
+                
+            batch_data['t'].extend([time_array] * len(windows))
+            batch_data['x'].extend(windows)
+            batch_data['dx'].extend(dx)
+            batch_data['ddx'].extend(ddx)
+        
+        for key in batch_data:
+            batch_data[key] = np.array(batch_data[key])
+        
+        n_examples = batch_data['x'].shape[0]
+        n_train = int((1 - val_split) * n_examples)
 
-for batch_data in data_pipeline(window_size=1000, step_size=500, method='smoothed_finite_differences', batch_size=150):
-    
-    print(f'Processed a batch with data shapes - t: {batch_data["t"].shape} x: {batch_data["x"].shape}, dx: {batch_data["dx"].shape}, ddx: {batch_data["ddx"].shape}')
+        training_data = {key: batch_data[key][:n_train] for key in batch_data}
+        validation_data = {key: batch_data[key][n_train:] for key in batch_data}
 
+        print(f"Batch {batch_idx + 1} shapes - training: x: {training_data['x'].shape}, validation: x: {validation_data['x'].shape}")
+        
+        yield training_data, validation_data
+
+# for batch_data in data_pipeline(window_size=1000, step_size=500, method='smoothed_finite_differences', batch_size=150):
+    
+#     print(f'Processed a batch with data shapes - t: {batch_data["t"].shape} x: {batch_data["x"].shape}, dx: {batch_data["dx"].shape}, ddx: {batch_data["ddx"].shape}')
