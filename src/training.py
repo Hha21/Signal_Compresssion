@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import pickle 
 from autoencoder import create_network, define_loss
+tf.compat.v1.disable_eager_execution()
 
 def train_network(training_data, val_data, params):
 
@@ -11,7 +12,7 @@ def train_network(training_data, val_data, params):
     train_op = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(loss)
     train_op_refinement = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(loss_refinement)
     saver = tf.train.Saver(var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))
-
+    
     validation_dict = create_feed_dictionary(val_data, params, idxs = None)
 
     x_norm = np.mean(val_data['x']**2)

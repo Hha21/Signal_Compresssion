@@ -1,4 +1,6 @@
+# import tensorflow as tf
 import tensorflow as tf
+tf.compat.v1.disable_eager_execution()
 
 def create_network (params):
 
@@ -20,11 +22,11 @@ def create_network (params):
 
     network = {}
 
-    x = tf.placeholder(tf.float32, shape = [None, input_dim], name = 'x')
-    dx = tf.placeholder(tf.float32, shape = [None, input_dim], name = 'dx')
+    x = tf.compat.v1.placeholder(tf.float32, shape = [None, input_dim], name = 'x')
+    dx = tf.compat.v1.placeholder(tf.float32, shape = [None, input_dim], name = 'dx')
 
     if model_order == 2:
-        ddx = tf.placeholder(tf.float32, shape = [None, input_dim], name = 'ddx')
+        ddx = tf.compat.v1.placeholder(tf.float32, shape = [None, input_dim], name = 'ddx')
     
     if activation == 'linear':
         z, x_decode, encoder_weights, encoder_biases, decoder_weights, decoder_biases = linear_autoencoder(x, input_dim, latent_dim)
@@ -186,16 +188,16 @@ def build_network_layers(input, input_dim, output_dim, widths, activation, name)
 
     last_width = input_dim
     for i, n_units in enumerate(widths):
-        W = tf.get_variable(name + '_W' + str(i), shape = [last_width, n_units],
-                        intitalizer = tf.contrib.layers.xavier_initializer())
-        b = tf.get_varibale(name + '_b' + str(i), shape = [n_units],
+        W = tf.compat.v1.get_variable(name + '_W' + str(i), shape = [last_width, n_units],
+                        intitalizer = tf.compat.v1.contrib.layers.xavier_initializer())
+        b = tf.compat.v1.get_variable(name + '_b' + str(i), shape = [n_units],
                         initializer = tf.constant_initializer(0.0))
         input = tf.matmul(input, W) + b
         if activation is not None:
             input = activation(input)
         last_width = n_units
         weights.append(W)
-        biases .append(b)
+        biases.append(b)
     W = tf.get_variable(name + '_W' + str(len(widths)), shape = [last_width, output_dim],
                         initializer = tf.contrib.layers.xavier_initializer())
     b = tf.get_variable(name + '_b' + str(len(widths)), shape = [output_dim],
